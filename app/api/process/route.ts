@@ -2,26 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
   try {
-    const { audio } = await request.json();
+    const { transcript } = await request.json();
     
-    // Mock transcription for now
-    const transcription = "هلا حبيبي، بقولك، أمس رحت السوق ولقيت الأسعار غالية مرة، بس المهم خلاص حجزت تذاكر السفر للأسبوع الجاي، آه صحيح نسيت أقولك اجتماع الخميس انلغى، وبعدين لازم نتقابل نحكي عن المشروع الجديد";
+    // Use the real transcript from speech recognition
+    const transcription = transcript || "النص غير متوفر";
 
     const apiKey = process.env.GROQ_API_KEY;
     
     if (!apiKey) {
-      // Mock response
+      // Mock response for testing
+      console.log('🔧 Running in mock mode (no API key)');
+      console.log('📝 Transcript received:', transcription);
+      
       return NextResponse.json({
         messages: [
-          { emoji: "🛒", topic: "السوق", text: "رحت السوق أمس ولقيت الأسعار غالية جداً" },
-          { emoji: "✈️", topic: "السفر", text: "حجزت تذاكر السفر للأسبوع الجاي، كل شي جاهز" },
-          { emoji: "📅", topic: "الاجتماع", text: "اجتماع الخميس انلغى" },
-          { emoji: "💼", topic: "المشروع", text: "لازم نتقابل نحكي عن المشروع الجديد" }
+          {
+            emoji: "🎤",
+            topic: "الرسالة الصوتية",
+            text: transcription
+          }
         ]
       });
     }
 
-    // Groq API Call
+    // Real Groq API Call
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -44,11 +48,11 @@ export async function POST(request: NextRequest) {
 2. كل موضوع = رسالة منفصلة
 3. أضف emoji مناسب لكل رسالة
 4. اجعل الصياغة واضحة ومختصرة
-5. رد بـ JSON فقط بهذا الشكل:
+5. إذا كان النص قصير أو موضوع واحد، اجعله رسالة واحدة فقط
+6. رد بـ JSON فقط بهذا الشكل:
 {
   "messages": [
-    {"emoji": "🛒", "topic": "السوق", "text": "..."},
-    {"emoji": "✈️", "topic": "السفر", "text": "..."}
+    {"emoji": "🛒", "topic": "الموضوع", "text": "النص المنظم"}
   ]
 }
 
@@ -62,8 +66,16 @@ JSON فقط، بدون أي نص آخر:`
     const data = await response.json();
     const content = data.choices[0]?.message?.content || '{}';
     
+    console.log('✅ AI Response:', content);
+    
     const jsonMatch = content.match(/\{[\s\S]*\}/);
-    const parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : { messages: [] };
+    const parsedData = jsonMatch ? JSON.parse(jsonMatch[0]) : { 
+      messages: [{
+        emoji: "🎤",
+        topic: "الرسالة",
+        text: transcription
+      }]
+    };
 
     return NextResponse.json(parsedData);
 
