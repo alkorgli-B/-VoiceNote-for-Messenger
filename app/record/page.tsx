@@ -9,31 +9,27 @@ export default function RecordPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const router = useRouter();
 
-  const handleRecordingComplete = async (audioBlob: Blob) => {
+  const handleRecordingComplete = async (audioBlob: Blob, transcript: string) => {
     setIsProcessing(true);
     
     try {
-      // Convert to base64
-      const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      reader.onloadend = async () => {
-        const base64Audio = reader.result as string;
-        
-        // Send to API
-        const response = await fetch('/api/process', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64Audio }),
-        });
+      // Send transcript to API for processing
+      const response = await fetch('/api/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          transcript: transcript || "لم يتم التعرف على الصوت بشكل صحيح"
+        }),
+      });
 
-        const data = await response.json();
-        
-        // Store in session/localStorage
-        sessionStorage.setItem('processedMessages', JSON.stringify(data.messages));
-        
-        // Navigate to preview
-        router.push('/process');
-      };
+      const data = await response.json();
+      
+      // Store in sessionStorage
+      sessionStorage.setItem('processedMessages', JSON.stringify(data.messages));
+      sessionStorage.setItem('originalTranscript', transcript);
+      
+      // Navigate to preview
+      router.push('/process');
     } catch (error) {
       console.error('خطأ في المعالجة:', error);
       alert('حدث خطأ، حاول مرة أخرى');
@@ -48,6 +44,9 @@ export default function RecordPage() {
           <Loader2 className="w-16 h-16 text-blue-600 animate-spin mx-auto mb-4" />
           <h2 className="text-2xl font-bold mb-2">جاري المعالجة...</h2>
           <p className="text-gray-600">AI يحلل رسالتك ويرتبها</p>
+          <div className="mt-4 text-sm text-gray-500">
+            هذا قد يستغرق بضع ثوانٍ...
+          </div>
         </div>
       </div>
     );
