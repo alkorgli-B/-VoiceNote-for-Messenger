@@ -3,21 +3,48 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MessagePreview from '@/components/MessagePreview';
-import { Copy, Send, ChevronRight } from 'lucide-react';
+import ToneSelector from '@/components/ToneSelector';
+import { Copy, Send, ChevronRight, Loader2 } from 'lucide-react';
 
 export default function ProcessPage() {
   const [messages, setMessages] = useState([]);
+  const [originalMessages, setOriginalMessages] = useState([]);
+  const [selectedTone, setSelectedTone] = useState('friendly');
   const [copied, setCopied] = useState(false);
+  const [isTransforming, setIsTransforming] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     const stored = sessionStorage.getItem('processedMessages');
     if (stored) {
-      setMessages(JSON.parse(stored));
+      const parsed = JSON.parse(stored);
+      setMessages(parsed);
+      setOriginalMessages(parsed);
     } else {
       router.push('/');
     }
   }, [router]);
+
+  const handleToneChange = async (tone: string) => {
+    setSelectedTone(tone);
+    setIsTransforming(true);
+
+    try {
+      const response = await fetch('/api/transform-tone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: originalMessages, tone }),
+      });
+
+      const data = await response.json();
+      setMessages(data.messages);
+    } catch (error) {
+      console.error('Error transforming tone:', error);
+      setMessages(originalMessages);
+    } finally {
+      setIsTransforming(false);
+    }
+  };
 
   const copyAll = () => {
     const text = messages.map((m: any) => 
@@ -30,9 +57,21 @@ export default function ProcessPage() {
   };
 
   const sendToMessenger = () => {
-    // TODO: Implement Messenger integration
-    alert('قريباً! الآن انسخ واستخدم');
-    copyAll();
+    // Create shareable text
+    const text = messages.map((m: any) => 
+      `${m.emoji} *${m.topic}*\n${m.text}`
+    ).join('\n\n');
+    
+    // Messenger share URL
+    const messengerUrl = `fb-messenger://share?link=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(text)}`;
+    
+    // Try to open Messenger, fallback to copy
+    window.location.href = messengerUrl;
+    
+    setTimeout(() => {
+      copyAll();
+      alert('تم نسخ الرسائل! الصقها في Messenger');
+    }, 1000);
   };
 
   if (messages.length === 0) {
@@ -47,8 +86,26 @@ export default function ProcessPage() {
           {messages.length} رسالة منظمة ومرتبة
         </p>
 
+        {/* Tone Selector */}
+        <div className="mb-6">
+          <ToneSelector 
+            onToneSelect={handleToneChange} 
+            selectedTone={selectedTone}
+          />
+        </div>
+
+        {/* Loading state during transformation */}
+        {isTransforming && (
+          <div className="card text-center mb-6">
+            <Loader2 className="w-8 h-8 text-blue-600 animate-spin mx-auto mb-2" />
+            <p className="text-sm text-gray-600">جاري تغيير الأسلوب...</p>
+          </div>
+        )}
+
+        {/* Messages Preview */}
         <MessagePreview messages={messages} />
 
+        {/* Actions */}
         <div className="flex gap-4 mt-8">
           <button
             onClick={copyAll}
