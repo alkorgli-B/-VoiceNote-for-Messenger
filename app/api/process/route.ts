@@ -1,19 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
 export async function POST(request: NextRequest) {
   try {
     const { audio } = await request.json();
     
-    // TODO: Convert audio to text using Whisper or Web Speech API
-    // For now, simulating with placeholder
+    // Simulate transcription (replace with real Whisper API later)
     const transcription = "هلا حبيبي، بقولك، أمس رحت السوق ولقيت الأسعار غالية مرة، بس المهم خلاص حجزت تذاكر السفر للأسبوع الجاي، آه صحيح نسيت أقولك اجتماع الخميس انلغى، وبعدين لازم نتقابل نحكي عن المشروع الجديد";
 
-    // Process with Claude
+    // Check if API key exists (for Vercel deployment)
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    
+    if (!apiKey) {
+      // Mock response for testing without API key
+      console.log('🔧 Running in mock mode (no API key)');
+      return NextResponse.json({
+        messages: [
+          {
+            emoji: "🛒",
+            topic: "السوق",
+            text: "رحت السوق أمس ولقيت الأسعار غالية جداً"
+          },
+          {
+            emoji: "✈️",
+            topic: "السفر",
+            text: "حجزت تذاكر السفر للأسبوع الجاي، كل شي جاهز"
+          },
+          {
+            emoji: "📅",
+            topic: "الاجتماع",
+            text: "اجتماع الخميس انلغى"
+          },
+          {
+            emoji: "💼",
+            topic: "المشروع",
+            text: "لازم نتقابل نحكي عن المشروع الجديد"
+          }
+        ]
+      });
+    }
+
+    // Real API call when key exists
+    const anthropic = new Anthropic({ apiKey });
+
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
